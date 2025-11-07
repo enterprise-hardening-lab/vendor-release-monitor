@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "detect | validate | notify | update-catalog | generate-summary"
+        description: "detect | validate | notify | update-catalog | generate-summary | full-pipeline"
         required: true
         default: "detect"
       vendor:
@@ -48,53 +48,74 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # --- D E T E C T ---
-      - name: 🧩 Detect Vendor Release
-        if: ${{ needs.guard.outputs.action == 'detect' }}
+      ###############################################################
+      # Sequential Action Orchestration (Per Vendor)
+      ###############################################################
+
+      # 1️⃣ DETECT
+      - name: 🔍 Detect Vendor Release
+        if: ${{ needs.guard.outputs.action == 'detect' || needs.guard.outputs.action == 'full-pipeline' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
           action: detect
 
-      # --- V A L I D A T E ---
-      - name: 🧪 Validate CIS & Security Baselines
-        if: ${{ needs.guard.outputs.action == 'validate' }}
+      # 2️⃣ VALIDATE
+      - name: 🧪 Validate Vendor Image Compliance
+        if: ${{ needs.guard.outputs.action == 'validate' || needs.guard.outputs.action == 'full-pipeline' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
           action: validate
 
-      # --- N O T I F Y ---
-      - name: 📩 Notify via JIRA
-        if: ${{ needs.guard.outputs.action == 'notify' }}
+      # 3️⃣ NOTIFY (JIRA)
+      - name: 📩 Notify JIRA (New Release Detected)
+        if: ${{ needs.guard.outputs.action == 'notify' || needs.guard.outputs.action == 'full-pipeline' }}
         uses: ./actions/jira-notify
         with:
           vendor: ${{ matrix.vendor }}
           version: "latest"
           old_version: "previous"
 
-      # --- U P D A T E  -  C A T A L O G ---
+      # 4️⃣ UPDATE CATALOG
       - name: 🗂️ Update Vendor Catalog
-        if: ${{ needs.guard.outputs.action == 'update-catalog' }}
+        if: ${{ needs.guard.outputs.action == 'update-catalog' || needs.guard.outputs.action == 'full-pipeline' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
           action: update-catalog
 
-      # --- G E N E R A T E  -  S U M M A R Y ---
+      # 5️⃣ GENERATE SUMMARY
       - name: 📊 Generate Summary Report
-        if: ${{ needs.guard.outputs.action == 'generate-summary' }}
+        if: ${{ needs.guard.outputs.action == 'generate-summary' || needs.guard.outputs.action == 'full-pipeline' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
           action: generate-summary
 
   finalize:
-    name: Post-Operation Summary
-    runs-on: ubuntu-latest
+    name: 🧾 Consolidate & Finalize
     needs: controller
+    runs-on: ubuntu-latest
+    if: ${{ needs.guard.outputs.action == 'generate-summary' || needs.guard.outputs.action == 'full-pipeline' }}
     steps:
-      - name: 🧾 Print final summary
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🧩 Merge Reports
         run: |
-          echo "✅ Operation completed for action: ${{ github.event.inputs.action }}"
-          echo "🏷️ Vendors processed: ${{ github.event.inputs.vendor }}"
+          mkdir -p reports/final
+          echo "Combining individual vendor reports into one unified compliance summary..."
+          if ls reports/*-summary.json 1> /dev/null 2>&1; then
+            jq -s '.' reports/*-summary.json > reports/final/compliance-summary.json
+            echo "✅ Final report created at reports/final/compliance-summary.json"
+          else
+            echo "⚠️ No summary reports found to merge"
+          fi
+
+      - name: Upload Final Summary
+        if: hashFiles('reports/final/compliance-summary.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-compliance-summary
+          path: reports/final/compliance-summary.json
