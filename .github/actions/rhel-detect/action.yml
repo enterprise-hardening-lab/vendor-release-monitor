@@ -13,32 +13,20 @@ runs:
         python-version: "3.x"
 
     - name: Install dependencies
-      run: pip install requests
-      shell: bash
-
-    - name: Run RHEL API Client
-      id: fetch
-      run: |
-        version=$(python3 connectors/rhel/api_client.py | grep "Latest RHEL version detected" | awk -F': ' '{print $2}')
-        echo "latest_version=$version" >> $GITHUB_OUTPUT
-      shell: bash
-
-    - name: Compare and Update Catalog
-      run: python3 scripts/compare_versions.py rhel "${{ steps.fetch.outputs.latest_version }}"
+      run: pip install requests jq
       shell: bash
 
     - name: Run RHEL API Client (resilient)
-      id: fetch
       run: |
         set +e
         echo "🔎 Querying Red Hat Security Data API..."
         output=$(python3 connectors/rhel/api_client.py 2>&1)
         echo "$output"
 
-        # Try to capture the version line
+        # Extract version string from Python output
         version=$(echo "$output" | grep "Latest RHEL version detected" | awk -F': ' '{print $2}')
 
-        # If nothing matched, fall back to the catalog
+        # Fallback if not found
         if [ -z "$version" ]; then
           echo "⚠️  No version string detected — falling back to catalog/state/rhel.json"
           if [ -f catalog/state/rhel.json ]; then
@@ -48,9 +36,11 @@ runs:
           fi
         fi
 
-        echo "latest_version=$version" >> "$GITHUB_OUTPUT"
+        echo "latest_version=$version" >> $GITHUB_OUTPUT
         echo "Detected RHEL version: $version"
         exit 0
       shell: bash
 
-
+    - name: Compare and Update Catalog
+      run: python3 scripts/compare_versions.py rhel "${{ steps.prep.outputs.latest_version }}"
+      shell: bash
