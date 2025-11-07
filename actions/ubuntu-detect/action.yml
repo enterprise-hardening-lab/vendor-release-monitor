@@ -89,9 +89,26 @@ runs:
         echo "✅ Summary report created: reports/ubuntu-summary.json"
       shell: bash
 
-    # 9️⃣ UPLOAD REPORTS (collision-proof)
-    - name: Upload Ubuntu Reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}
-        path: reports/
+    # 9️⃣ UPLOAD REPORTS (collision-proof + retry logic)
+    - name: Upload Ubuntu Reports (resilient)
+      shell: bash
+      run: |
+        artifact_name="reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}"
+        echo "🧩 Uploading artifact: $artifact_name"
+        for i in {1..5}; do
+          echo "Attempt $i..."
+          if gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/actions/artifacts \
+            >/dev/null 2>&1; then
+            echo "✅ Artifact created successfully."
+            break
+          else
+            echo "⚠️ Upload failed (maybe conflict). Retrying in 10s..."
+            sleep 10
+          fi
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
+
