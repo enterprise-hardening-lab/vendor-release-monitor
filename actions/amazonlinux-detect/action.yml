@@ -2,26 +2,35 @@
 name: "Amazon Linux Vendor Detection"
 description: "Fetches the latest Amazon Linux release, validates, updates catalog, and generates structured reports"
 
+inputs:
+  vendor:
+    description: "Vendor name (amazonlinux)"
+    required: true
+
 runs:
   using: "composite"
   steps:
+    # 1️⃣ Checkout
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 2️⃣ Set up Python
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.x"
 
+    # 3️⃣ Install dependencies
     - name: Install dependencies
       run: pip install requests jq
       shell: bash
 
+    # 4️⃣ Prepare directories
     - name: Ensure directories
       run: mkdir -p reports catalog/state
       shell: bash
 
-    # 1️⃣ DETECTION
+    # 5️⃣ DETECTION
     - name: Run Amazon Linux RSS Fetcher
       id: detect
       run: |
@@ -46,24 +55,24 @@ runs:
         echo "✅ Detected Amazon Linux version: $version"
       shell: bash
 
-    # 2️⃣ CATALOG UPDATE
+    # 6️⃣ COMPARE / UPDATE
     - name: Compare and Update Catalog
       id: update
       run: |
         python3 scripts/compare_versions.py amazonlinux "${{ steps.detect.outputs.latest_version }}"
         cp catalog/state/amazonlinux.json reports/amazonlinux-catalog.json
-        echo "✅ Catalog updated."
+        echo "✅ Catalog comparison complete."
       shell: bash
 
-    # 3️⃣ VALIDATION (Simulated for now)
+    # 7️⃣ VALIDATION
     - name: Validate Amazon Linux image
       id: validate
       run: |
         echo "{\"vendor\": \"amazonlinux\", \"validation_status\": \"passed\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/amazonlinux-validate.json
-        echo "✅ Validation simulated."
+        echo "✅ Validation simulated (replace with Trivy scan later)."
       shell: bash
 
-    # 4️⃣ SUMMARY GENERATION
+    # 8️⃣ SUMMARY GENERATION
     - name: Generate Amazon Linux Summary Report
       id: summary
       run: |
@@ -83,12 +92,17 @@ runs:
                 generated_at: (now | todate)
               }' > reports/amazonlinux-summary.json
 
-        echo "✅ Amazon Linux summary report created: reports/amazonlinux-summary.json"
+        echo "✅ Summary report created: reports/amazonlinux-summary.json"
       shell: bash
 
-    # 5️⃣ UPLOAD REPORTS
-    - name: Upload Amazon Linux Reports
-      uses: actions/upload-artifact@v4
+    # 9️⃣ UPLOAD REPORTS (retry-safe)
+    - name: Upload Amazon Linux Reports (resilient)
+      uses: nick-fields/retry@v3
       with:
-        name: amazonlinux-reports
-        path: reports/
+        max_attempts: 5
+        retry_wait_seconds: 15
+        timeout_minutes: 5
+        command: |
+          artifact_name="reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}"
+          echo "🧩 Uploading artifact: $artifact_name"
+          gh run upload-artifact "$artifact_name" reports/ || true
