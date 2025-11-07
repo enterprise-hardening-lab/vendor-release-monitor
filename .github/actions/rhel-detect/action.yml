@@ -26,3 +26,19 @@ runs:
     - name: Compare and Update Catalog
       run: python3 scripts/compare_versions.py rhel "${{ steps.fetch.outputs.latest_version }}"
       shell: bash
+
+    - name: Run RHEL API Client
+      id: fetch
+      run: |
+        set +e
+        output=$(python3 connectors/rhel/api_client.py)
+        echo "$output"
+        version=$(echo "$output" | grep "Latest RHEL version detected" | awk -F': ' '{print $2}')
+        if [ -z "$version" ]; then
+          echo "⚠️  No version string detected; defaulting to catalog value"
+          version=$(jq -r '.last_version' catalog/state/rhel.json 2>/dev/null || echo "unknown")
+        fi
+        echo "latest_version=$version" >> $GITHUB_OUTPUT
+        exit 0
+      shell: bash
+
