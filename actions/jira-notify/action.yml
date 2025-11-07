@@ -1,0 +1,43 @@
+---
+name: "📩 JIRA Notification"
+description: "Creates or updates a JIRA issue for vendor release events."
+
+inputs:
+  vendor:
+    description: "Vendor name (ubuntu, rhel, amazonlinux)"
+    required: true
+  version:
+    description: "New release version detected"
+    required: false
+  old_version:
+    description: "Previous release version"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: 🧩 Log Inputs
+      shell: bash
+      run: |
+        echo "🔸 Vendor: ${{ inputs.vendor }}"
+        echo "🔸 New Version: ${{ inputs.version }}"
+        echo "🔸 Previous Version: ${{ inputs.old_version }}"
+
+    - name: 🧾 Simulate JIRA API Call
+      shell: bash
+      run: |
+        echo "📨 Creating JIRA issue for ${{ inputs.vendor }}..."
+        # Simulate the REST API request (replace this block with curl or python later)
+        echo "{
+          \"vendor\": \"${{ inputs.vendor }}\",
+          \"new_version\": \"${{ inputs.version }}\",
+          \"old_version\": \"${{ inputs.old_version }}\",
+          \"status\": \"created\"
+        }" > jira-${{ inputs.vendor }}.json
+        echo "✅ JIRA notification simulated successfully."
+
+    - name: Upload JIRA Log
+      uses: actions/upload-artifact@v4
+      with:
+        name: jira-${{ inputs.vendor }}-notification
+        path: jira-${{ inputs.vendor }}.json
