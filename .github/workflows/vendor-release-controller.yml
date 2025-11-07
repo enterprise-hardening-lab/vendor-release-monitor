@@ -1,4 +1,4 @@
-name: 🚀 Vendor Release Controller (Manual Only – Composite Action Version)
+name: 🚀 Vendor Release Controller (Manual Only – Multi-Action Enterprise Version)
 
 on:
   workflow_dispatch:
@@ -20,6 +20,9 @@ jobs:
   guard:
     name: Verify Manual Trigger
     runs-on: ubuntu-latest
+    outputs:
+      action: ${{ github.event.inputs.action }}
+      vendor: ${{ github.event.inputs.vendor }}
     steps:
       - name: Check Event
         run: |
@@ -29,24 +32,101 @@ jobs:
             exit 1
           fi
           echo "✅ Manual trigger verified."
+          echo "Selected Action: ${{ github.event.inputs.action }}"
+          echo "Selected Vendor: ${{ github.event.inputs.vendor }}"
 
-  detect:
-    name: Vendor Detection
+  execute:
+    name: Execute Vendor Operation
     needs: guard
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.action == 'detect' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 🧩 DETECT
       - name: 🐧 Ubuntu Vendor Detection
-        if: ${{ github.event.inputs.vendor == 'ubuntu' }}
+        if: ${{ needs.guard.outputs.action == 'detect' && github.event.inputs.vendor == 'ubuntu' }}
         uses: ./actions/ubuntu-detect
 
       - name: 🔵 RHEL Vendor Detection
-        if: ${{ github.event.inputs.vendor == 'rhel' }}
+        if: ${{ needs.guard.outputs.action == 'detect' && github.event.inputs.vendor == 'rhel' }}
         uses: ./actions/rhel-detect
 
       - name: 🟣 Amazon Linux Vendor Detection
-        if: ${{ github.event.inputs.vendor == 'amazonlinux' }}
+        if: ${{ needs.guard.outputs.action == 'detect' && github.event.inputs.vendor == 'amazonlinux' }}
         uses: ./actions/amazonlinux-detect
+
+      # 🧪 VALIDATE
+      - name: 🧪 Validate Ubuntu Image
+        if: ${{ github.event.inputs.action == 'validate' && github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
+        with:
+          action: validate
+          vendor: ubuntu
+
+      - name: 🧪 Validate RHEL Image
+        if: ${{ github.event.inputs.action == 'validate' && github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          action: validate
+          vendor: rhel
+
+      - name: 🧪 Validate Amazon Linux Image
+        if: ${{ github.event.inputs.action == 'validate' && github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          action: validate
+          vendor: amazonlinux
+
+      # 📢 NOTIFY
+      - name: 📩 Notify JIRA
+        if: ${{ github.event.inputs.action == 'notify' }}
+        uses: ./actions/jira-notify
+        with:
+          vendor: ${{ github.event.inputs.vendor }}
+          version: "latest"
+          old_version: "previous"
+
+      # 🗂️ UPDATE CATALOG
+      - name: 🗂️ Update Vendor Catalog
+        if: ${{ github.event.inputs.action == 'update-catalog' && github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
+        with:
+          action: update-catalog
+          vendor: ubuntu
+
+      - name: 🗂️ Update Vendor Catalog (RHEL)
+        if: ${{ github.event.inputs.action == 'update-catalog' && github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          action: update-catalog
+          vendor: rhel
+
+      - name: 🗂️ Update Vendor Catalog (Amazon Linux)
+        if: ${{ github.event.inputs.action == 'update-catalog' && github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          action: update-catalog
+          vendor: amazonlinux
+
+      # 📊 GENERATE SUMMARY
+      - name: 📊 Generate Ubuntu Summary
+        if: ${{ github.event.inputs.action == 'generate-summary' && github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
+        with:
+          action: generate-summary
+          vendor: ubuntu
+
+      - name: 📊 Generate RHEL Summary
+        if: ${{ github.event.inputs.action == 'generate-summary' && github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          action: generate-summary
+          vendor: rhel
+
+      - name: 📊 Generate Amazon Linux Summary
+        if: ${{ github.event.inputs.action == 'generate-summary' && github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          action: generate-summary
+          vendor: amazonlinux
