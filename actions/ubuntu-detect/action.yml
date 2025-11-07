@@ -89,24 +89,23 @@ runs:
         echo "✅ Summary report created: reports/ubuntu-summary.json"
       shell: bash
 
-    # 9️⃣ UPLOAD REPORTS (409-safe retry block)
+    # 9️⃣ UPLOAD REPORTS (Final Resilient Version)
     - name: Upload Ubuntu Reports (retry-safe)
-      shell: bash
-      run: |
-        artifact_name="reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}"
-        echo "🧩 Uploading artifact: $artifact_name"
-        for i in {1..5}; do
-          echo "Attempt $i..."
-          if npx @actions/artifact upload \
-            --name "$artifact_name" \
-            --path reports/ >/dev/null 2>&1; then
-            echo "✅ Artifact uploaded successfully on attempt $i."
-            exit 0
-          fi
-          echo "⚠️ Upload failed (possibly conflict). Retrying in 10s..."
-          sleep 10
-        done
-        echo "❌ Upload failed after 5 attempts."
-        exit 1
+      uses: nick-fields/retry@v3
+      with:
+        max_attempts: 5
+        retry_wait_seconds: 10
+        timeout_minutes: 5
+        command: |
+          echo "🧩 Uploading artifact for vendor: ${{ inputs.vendor }}"
+          artifact_name="reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}"
+          echo "Artifact name: $artifact_name"
+          echo "Starting upload..."
+          gh workflow run upload-artifact \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref }}" \
+            --field name="$artifact_name" \
+            --field path="reports/" || true
+
 
 
