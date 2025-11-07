@@ -89,26 +89,24 @@ runs:
         echo "✅ Summary report created: reports/ubuntu-summary.json"
       shell: bash
 
-    # 9️⃣ UPLOAD REPORTS (collision-proof + retry logic)
-    - name: Upload Ubuntu Reports (resilient)
+    # 9️⃣ UPLOAD REPORTS (409-safe retry block)
+    - name: Upload Ubuntu Reports (retry-safe)
       shell: bash
       run: |
         artifact_name="reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}"
         echo "🧩 Uploading artifact: $artifact_name"
         for i in {1..5}; do
           echo "Attempt $i..."
-          if gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/actions/artifacts \
-            >/dev/null 2>&1; then
-            echo "✅ Artifact created successfully."
-            break
-          else
-            echo "⚠️ Upload failed (maybe conflict). Retrying in 10s..."
-            sleep 10
+          if npx @actions/artifact upload \
+            --name "$artifact_name" \
+            --path reports/ >/dev/null 2>&1; then
+            echo "✅ Artifact uploaded successfully on attempt $i."
+            exit 0
           fi
+          echo "⚠️ Upload failed (possibly conflict). Retrying in 10s..."
+          sleep 10
         done
-      env:
-        GH_TOKEN: ${{ github.token }}
+        echo "❌ Upload failed after 5 attempts."
+        exit 1
+
 
