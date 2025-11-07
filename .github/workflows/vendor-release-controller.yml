@@ -37,60 +37,125 @@ jobs:
     name: Execute Vendor Release Operations
     needs: guard
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        vendor: [ubuntu, rhel, amazonlinux]
-      max-parallel: 1
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Skip if not the selected vendor
-      - name: Skip vendor if not selected
-        if: ${{ github.event.inputs.vendor != 'all' && github.event.inputs.vendor != matrix.vendor }}
-        run: |
-          echo "Skipping vendor ${{ matrix.vendor }} (selected: ${{ github.event.inputs.vendor }})"
-          exit 0
-
-      # 1️⃣ DETECT
-      - name: 🔍 Detect Vendor Release
-        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+      ###############################################################
+      # Ubuntu sequence
+      ###############################################################
+      - name: 🔍 Detect Ubuntu
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ubuntu
           action: detect
 
-      # 2️⃣ VALIDATE
-      - name: 🧪 Validate Vendor Image Compliance
-        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+      - name: 🧪 Validate Ubuntu
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ubuntu
           action: validate
 
-      # 3️⃣ NOTIFY (JIRA)
-      - name: 📩 Notify JIRA (New Release Detected)
-        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == matrix.vendor }}
+      - name: 📩 Notify Ubuntu JIRA
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'ubuntu' }}
         uses: ./actions/jira-notify
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ubuntu
           version: "latest"
           old_version: "previous"
 
-      # 4️⃣ UPDATE CATALOG
-      - name: 🗂️ Update Vendor Catalog
-        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+      - name: 🗂️ Update Ubuntu Catalog
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ubuntu
           action: update-catalog
 
-      # 5️⃣ GENERATE SUMMARY
-      - name: 📊 Generate Summary Report
-        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+      - name: 📊 Ubuntu Summary
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ubuntu
+          action: generate-summary
+
+      ###############################################################
+      # RHEL sequence
+      ###############################################################
+      - name: 🔍 Detect RHEL
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          vendor: rhel
+          action: detect
+
+      - name: 🧪 Validate RHEL
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          vendor: rhel
+          action: validate
+
+      - name: 📩 Notify RHEL JIRA
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/jira-notify
+        with:
+          vendor: rhel
+          version: "latest"
+          old_version: "previous"
+
+      - name: 🗂️ Update RHEL Catalog
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          vendor: rhel
+          action: update-catalog
+
+      - name: 📊 RHEL Summary
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          vendor: rhel
+          action: generate-summary
+
+      ###############################################################
+      # Amazon Linux sequence
+      ###############################################################
+      - name: 🔍 Detect Amazon Linux
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
+          action: detect
+
+      - name: 🧪 Validate Amazon Linux
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
+          action: validate
+
+      - name: 📩 Notify Amazon Linux JIRA
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/jira-notify
+        with:
+          vendor: amazonlinux
+          version: "latest"
+          old_version: "previous"
+
+      - name: 🗂️ Update Amazon Linux Catalog
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
+          action: update-catalog
+
+      - name: 📊 Amazon Linux Summary
+        if: ${{ github.event.inputs.vendor == 'all' || github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
           action: generate-summary
 
   finalize:
