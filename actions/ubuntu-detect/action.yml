@@ -10,27 +10,27 @@ inputs:
 runs:
   using: "composite"
   steps:
-    # 0️⃣ Checkout
+    # 1️⃣ Checkout
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 1️⃣ Set up Python
+    # 2️⃣ Set up Python
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.x"
 
-    # 2️⃣ Install dependencies
+    # 3️⃣ Install dependencies
     - name: Install dependencies
       run: pip install requests beautifulsoup4 jq
       shell: bash
 
-    # 3️⃣ Prepare directories
+    # 4️⃣ Prepare directories
     - name: Ensure directories
       run: mkdir -p reports catalog/state
       shell: bash
 
-    # 4️⃣ DETECT latest Ubuntu version
+    # 5️⃣ DETECT
     - name: Run Ubuntu RSS Fetcher
       id: fetch
       run: |
@@ -49,7 +49,7 @@ runs:
         echo "✅ Detected latest Ubuntu version: $version"
       shell: bash
 
-    # 5️⃣ CATALOG COMPARISON
+    # 6️⃣ COMPARE / CATALOG UPDATE
     - name: Compare and Update Catalog
       id: update
       run: |
@@ -58,7 +58,7 @@ runs:
         echo "✅ Catalog comparison complete."
       shell: bash
 
-    # 6️⃣ VALIDATION (Simulated)
+    # 7️⃣ VALIDATE
     - name: Validate Ubuntu image
       id: validate
       run: |
@@ -66,7 +66,7 @@ runs:
         echo "✅ Validation simulated (replace with Trivy scan later)."
       shell: bash
 
-    # 7️⃣ GENERATE SUMMARY
+    # 8️⃣ GENERATE SUMMARY
     - name: Generate Ubuntu Summary Report
       id: summary
       run: |
@@ -85,12 +85,13 @@ runs:
                 catalog: $catalog[0],
                 generated_at: (now | todate)
               }' > reports/ubuntu-summary.json
+
         echo "✅ Summary report created: reports/ubuntu-summary.json"
       shell: bash
 
+    # 9️⃣ UPLOAD REPORTS (collision-proof)
     - name: Upload Ubuntu Reports
       uses: actions/upload-artifact@v4
       with:
-        name: reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}
+        name: reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}
         path: reports/
-
