@@ -88,9 +88,9 @@ runs:
         echo "✅ Summary report created: reports/ubuntu-summary.json"
       shell: bash
 
-    # 8️⃣ UPLOAD REPORTS (with unique name)
     - name: Upload Ubuntu Reports
       uses: actions/upload-artifact@v4
       with:
-        name: reports-${{ inputs.vendor }}-${{ github.run_number }}
+        name: reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}
         path: reports/
+
