@@ -34,16 +34,16 @@ jobs:
     name: 🐧 Ubuntu Vendor Detection
     needs: guard
     if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'ubuntu' }}
-    uses: ./actions/ubuntu-detect@main
+    uses: ./actions/ubuntu-detect@main@main
 
   rhel-detect:
     name: 🔵 RHEL Vendor Detection
     needs: guard
     if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'rhel' }}
-    uses: ./actions/rhel-detect@main
+    uses: ./actions/rhel-detect@main@main
 
   amazonlinux-detect:
     name: 🟣 Amazon Linux Vendor Detection
     needs: guard
     if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'amazonlinux' }}
-    uses: ./actions/amazonlinux-detect@main
+    uses: ./actions/amazonlinux-detect@main@main
