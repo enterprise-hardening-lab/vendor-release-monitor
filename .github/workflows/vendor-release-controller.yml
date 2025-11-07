@@ -1,8 +1,12 @@
-name: 🚀 Vendor Release Controller (Sequential Multi-Action Workflow)
+name: 🚀 Vendor Release Controller (Enterprise Orchestrator)
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: "detect | validate | notify | update-catalog | generate-summary"
+        required: true
+        default: "detect"
       vendor:
         description: "Target vendor (ubuntu | rhel | amazonlinux | all)"
         required: true
@@ -17,72 +21,68 @@ jobs:
     name: Verify Manual Trigger
     runs-on: ubuntu-latest
     outputs:
+      action: ${{ github.event.inputs.action }}
       vendor: ${{ github.event.inputs.vendor }}
     steps:
-      - name: Verify Event
+      - name: Validate trigger
         run: |
           echo "Event: ${{ github.event_name }}"
           if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            echo "❌ This workflow must be manually triggered."
+            echo "❌ Only manual triggers allowed"
             exit 1
           fi
-          echo "✅ Manual trigger verified."
-          echo "Selected Vendor: ${{ github.event.inputs.vendor }}"
+          echo "✅ Manual trigger verified"
+          echo "Action selected: ${{ github.event.inputs.action }}"
+          echo "Vendor selected: ${{ github.event.inputs.vendor }}"
 
-  orchestrate:
-    name: 🧩 Sequential Vendor Operations
+  controller:
+    name: Execute Vendor Release Operations
     needs: guard
     runs-on: ubuntu-latest
     strategy:
       matrix:
         vendor: [ubuntu, rhel, amazonlinux]
-      max-parallel: 1   # runs one vendor at a time
+      max-parallel: 3
     if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      #####################################################
+      ###############################################################
+      # Sequential Action Orchestration (Per Vendor)
+      ###############################################################
+
       # 1️⃣ DETECT
-      #####################################################
-      - name: 🔍 Detect Release for ${{ matrix.vendor }}
+      - name: 🔍 Detect Vendor Release
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
           action: detect
 
-      #####################################################
       # 2️⃣ VALIDATE
-      #####################################################
-      - name: 🧪 Validate ${{ matrix.vendor }} Image Compliance
+      - name: 🧪 Validate Vendor Image Compliance
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
           action: validate
 
-      #####################################################
-      # 3️⃣ NOTIFY
-      #####################################################
-      - name: 📩 Notify via JIRA for ${{ matrix.vendor }}
+      # 3️⃣ NOTIFY (JIRA)
+      - name: 📩 Notify JIRA (New Release Detected)
         uses: ./actions/jira-notify
         with:
           vendor: ${{ matrix.vendor }}
           version: "latest"
           old_version: "previous"
 
-      #####################################################
       # 4️⃣ UPDATE CATALOG
-      #####################################################
-      - name: 🗂️ Update Catalog for ${{ matrix.vendor }}
+      - name: 🗂️ Update Vendor Catalog
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
           action: update-catalog
 
-      #####################################################
       # 5️⃣ GENERATE SUMMARY
-      #####################################################
-      - name: 📊 Generate Summary Report for ${{ matrix.vendor }}
+      - name: 📊 Generate Summary Report
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -90,7 +90,7 @@ jobs:
 
   finalize:
     name: 🧾 Consolidate & Finalize
-    needs: orchestrate
+    needs: controller
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
