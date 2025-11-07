@@ -41,12 +41,12 @@ jobs:
 
       - name: 🐧 Ubuntu Vendor Detection
         if: ${{ github.event.inputs.vendor == 'ubuntu' }}
-        uses: ./.github/actions/ubuntu-detect
+        uses: ./actions/ubuntu-detect
 
       - name: 🔵 RHEL Vendor Detection
         if: ${{ github.event.inputs.vendor == 'rhel' }}
-        uses: ./.github/actions/rhel-detect
+        uses: ./actions/rhel-detect
 
       - name: 🟣 Amazon Linux Vendor Detection
         if: ${{ github.event.inputs.vendor == 'amazonlinux' }}
-        uses: ./.github/actions/amazonlinux-detect
+        uses: ./actions/amazonlinux-detect
