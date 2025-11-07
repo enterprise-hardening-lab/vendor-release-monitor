@@ -27,18 +27,30 @@ runs:
       run: python3 scripts/compare_versions.py rhel "${{ steps.fetch.outputs.latest_version }}"
       shell: bash
 
-    - name: Run RHEL API Client
+    - name: Run RHEL API Client (resilient)
       id: fetch
       run: |
         set +e
-        output=$(python3 connectors/rhel/api_client.py)
+        echo "🔎 Querying Red Hat Security Data API..."
+        output=$(python3 connectors/rhel/api_client.py 2>&1)
         echo "$output"
+
+        # Try to capture the version line
         version=$(echo "$output" | grep "Latest RHEL version detected" | awk -F': ' '{print $2}')
+
+        # If nothing matched, fall back to the catalog
         if [ -z "$version" ]; then
-          echo "⚠️  No version string detected; defaulting to catalog value"
-          version=$(jq -r '.last_version' catalog/state/rhel.json 2>/dev/null || echo "unknown")
+          echo "⚠️  No version string detected — falling back to catalog/state/rhel.json"
+          if [ -f catalog/state/rhel.json ]; then
+            version=$(jq -r '.last_version' catalog/state/rhel.json)
+          else
+            version="unknown"
+          fi
         fi
-        echo "latest_version=$version" >> $GITHUB_OUTPUT
+
+        echo "latest_version=$version" >> "$GITHUB_OUTPUT"
+        echo "Detected RHEL version: $version"
         exit 0
       shell: bash
+
 
