@@ -134,16 +134,36 @@ jobs:
           action: generate-summary
 
   finalize:
-    name: 🧾 Finalize
-    needs: controller
+    name: 📦 Finalize & Merge Vendor Reports
     runs-on: ubuntu-latest
+    needs: [controller]
     steps:
-      - uses: actions/checkout@v4
-      - run: |
-          mkdir -p reports/final
-          jq -s '.' reports/*summary.json > reports/final/compliance-summary.json
-          echo "✅ Final summary built"
-      - uses: actions/upload-artifact@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download All Vendor Artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: compliance-summary
+          path: reports/
+          pattern: reports-*
+          merge-multiple: true
+
+      - name: Merge All Summary Reports
+        shell: bash
+        run: |
+          mkdir -p reports/final
+          echo "Combining all vendor summaries..."
+          if ls reports/*summary.json >/dev/null 2>&1; then
+            jq -s '.' reports/*summary.json > reports/final/compliance-summary.json
+            echo "✅ Combined summary created at reports/final/compliance-summary.json"
+          else
+            echo "⚠️ No summary files found. Creating empty report."
+            echo '[]' > reports/final/compliance-summary.json
+          fi
+
+      - name: Upload Final Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-compliance-summary
           path: reports/final/compliance-summary.json
+
