@@ -21,7 +21,6 @@ jobs:
     name: Verify Manual Trigger
     runs-on: ubuntu-latest
     outputs:
-      action: ${{ github.event.inputs.action }}
       vendor: ${{ github.event.inputs.vendor }}
     steps:
       - name: Validate trigger
@@ -31,8 +30,7 @@ jobs:
             echo "❌ Only manual triggers allowed"
             exit 1
           fi
-          echo "✅ Manual trigger verified"
-          echo "Action selected: ${{ github.event.inputs.action }}"
+          echo "✅ Manual trigger verified."
           echo "Vendor selected: ${{ github.event.inputs.vendor }}"
 
   controller:
@@ -47,10 +45,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Set dynamic vendor variable
+        run: echo "VENDOR=${{ matrix.vendor }}" >> $GITHUB_ENV
+
       - name: Skip if vendor filter doesn't match
-        if: ${{ needs.guard.outputs.vendor != 'all' && needs.guard.outputs.vendor != matrix.vendor }}
+        if: ${{ needs.guard.outputs.vendor != 'all' && needs.guard.outputs.vendor != env.VENDOR }}
         run: |
-          echo "Skipping vendor ${{ matrix.vendor }} because filter = ${{ needs.guard.outputs.vendor }}"
+          echo "Skipping vendor ${{ env.VENDOR }} because filter = ${{ needs.guard.outputs.vendor }}"
           exit 0
 
       ###############################################################
@@ -59,43 +60,43 @@ jobs:
 
       # 1️⃣ DETECT
       - name: 🔍 Detect Vendor Release
-        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == env.VENDOR }}
+        uses: ./actions/${{ env.VENDOR }}-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ${{ env.VENDOR }}
           action: detect
 
       # 2️⃣ VALIDATE
       - name: 🧪 Validate Vendor Image Compliance
-        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == env.VENDOR }}
+        uses: ./actions/${{ env.VENDOR }}-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ${{ env.VENDOR }}
           action: validate
 
       # 3️⃣ NOTIFY (JIRA)
       - name: 📩 Notify JIRA (New Release Detected)
-        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == env.VENDOR }}
         uses: ./actions/jira-notify
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ${{ env.VENDOR }}
           version: "latest"
           old_version: "previous"
 
       # 4️⃣ UPDATE CATALOG
       - name: 🗂️ Update Vendor Catalog
-        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == env.VENDOR }}
+        uses: ./actions/${{ env.VENDOR }}-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ${{ env.VENDOR }}
           action: update-catalog
 
       # 5️⃣ GENERATE SUMMARY
       - name: 📊 Generate Summary Report
-        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
-        uses: ./actions/${{ matrix.vendor }}-detect
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == env.VENDOR }}
+        uses: ./actions/${{ env.VENDOR }}-detect
         with:
-          vendor: ${{ matrix.vendor }}
+          vendor: ${{ env.VENDOR }}
           action: generate-summary
 
   finalize:
