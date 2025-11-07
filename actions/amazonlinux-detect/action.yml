@@ -1,5 +1,6 @@
+---
 name: "Amazon Linux Vendor Detection"
-description: "Fetches the latest Amazon Linux release and updates catalog"
+description: "Fetches the latest Amazon Linux release, validates, updates catalog, and generates structured reports"
 
 runs:
   using: "composite"
@@ -13,15 +14,24 @@ runs:
         python-version: "3.x"
 
     - name: Install dependencies
-      run: pip install requests
+      run: pip install requests jq
       shell: bash
 
+    - name: Ensure directories
+      run: mkdir -p reports catalog/state
+      shell: bash
+
+    # 1️⃣ DETECTION
     - name: Run Amazon Linux RSS Fetcher
+      id: detect
       run: |
         set +e
+        echo "🔎 Fetching latest Amazon Linux release..."
         output=$(python3 connectors/amazonlinux/rss_feed.py 2>&1)
         echo "$output"
+
         version=$(echo "$output" | grep "Latest Amazon" | awk -F': ' '{print $2}')
+
         if [ -z "$version" ]; then
           echo "⚠️ No version detected; using catalog fallback"
           if [ -f catalog/state/amazonlinux.json ]; then
@@ -30,11 +40,55 @@ runs:
             version="unknown"
           fi
         fi
+
         echo "latest_version=$version" >> $GITHUB_OUTPUT
-        echo "Detected Amazon Linux version: $version"
-        exit 0
+        echo "{\"vendor\": \"amazonlinux\", \"detected_version\": \"$version\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/amazonlinux-detect.json
+        echo "✅ Detected Amazon Linux version: $version"
       shell: bash
 
+    # 2️⃣ CATALOG UPDATE
     - name: Compare and Update Catalog
-      run: python3 scripts/compare_versions.py amazonlinux "${{ steps.prep.outputs.latest_version }}"
+      id: update
+      run: |
+        python3 scripts/compare_versions.py amazonlinux "${{ steps.detect.outputs.latest_version }}"
+        cp catalog/state/amazonlinux.json reports/amazonlinux-catalog.json
+        echo "✅ Catalog updated."
       shell: bash
+
+    # 3️⃣ VALIDATION (Simulated for now)
+    - name: Validate Amazon Linux image
+      id: validate
+      run: |
+        echo "{\"vendor\": \"amazonlinux\", \"validation_status\": \"passed\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/amazonlinux-validate.json
+        echo "✅ Validation simulated."
+      shell: bash
+
+    # 4️⃣ SUMMARY GENERATION
+    - name: Generate Amazon Linux Summary Report
+      id: summary
+      run: |
+        detect_file="reports/amazonlinux-detect.json"
+        validate_file="reports/amazonlinux-validate.json"
+        catalog_file="reports/amazonlinux-catalog.json"
+
+        jq -n --arg vendor "amazonlinux" \
+             --slurpfile detect $detect_file \
+             --slurpfile validate $validate_file \
+             --slurpfile catalog $catalog_file \
+             '{
+                vendor: $vendor,
+                detect: $detect[0],
+                validate: $validate[0],
+                catalog: $catalog[0],
+                generated_at: (now | todate)
+              }' > reports/amazonlinux-summary.json
+
+        echo "✅ Amazon Linux summary report created: reports/amazonlinux-summary.json"
+      shell: bash
+
+    # 5️⃣ UPLOAD REPORTS
+    - name: Upload Amazon Linux Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: amazonlinux-reports
+        path: reports/

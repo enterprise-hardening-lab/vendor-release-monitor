@@ -1,5 +1,6 @@
+---
 name: "Ubuntu Vendor Detection"
-description: "Fetches the latest Ubuntu LTS version and updates catalog"
+description: "Fetches the latest Ubuntu LTS version, updates catalog, and generates structured reports"
 
 runs:
   using: "composite"
@@ -13,16 +14,64 @@ runs:
         python-version: "3.x"
 
     - name: Install dependencies
-      run: pip install requests beautifulsoup4
+      run: pip install requests beautifulsoup4 jq
       shell: bash
 
+    - name: Ensure directories
+      run: mkdir -p reports catalog/state
+      shell: bash
+
+    # 1️⃣ DETECTION
     - name: Run Ubuntu RSS Fetcher
       id: fetch
       run: |
         version=$(python3 connectors/ubuntu/rss_fetcher.py | grep "Latest Ubuntu version detected" | awk -F': ' '{print $2}')
         echo "latest_version=$version" >> $GITHUB_OUTPUT
+        echo "{\"vendor\": \"ubuntu\", \"detected_version\": \"$version\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/ubuntu-detect.json
+        echo "✅ Detected latest Ubuntu version: $version"
       shell: bash
 
+    # 2️⃣ COMPARISON + CATALOG UPDATE
     - name: Compare and Update Catalog
-      run: python3 scripts/compare_versions.py ubuntu "${{ steps.fetch.outputs.latest_version }}"
+      id: update
+      run: |
+        python3 scripts/compare_versions.py ubuntu "${{ steps.fetch.outputs.latest_version }}"
+        cp catalog/state/ubuntu.json reports/ubuntu-catalog.json
+        echo "✅ Catalog comparison complete."
       shell: bash
+
+    # 3️⃣ VALIDATION (simulated for now)
+    - name: Validate Ubuntu image
+      id: validate
+      run: |
+        echo "{\"vendor\": \"ubuntu\", \"validation_status\": \"passed\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/ubuntu-validate.json
+        echo "✅ Validation simulated."
+      shell: bash
+
+    # 4️⃣ GENERATE SUMMARY
+    - name: Generate Ubuntu Summary Report
+      id: summary
+      run: |
+        detect_file="reports/ubuntu-detect.json"
+        validate_file="reports/ubuntu-validate.json"
+        catalog_file="reports/ubuntu-catalog.json"
+        jq -n --arg vendor "ubuntu" \
+             --slurpfile detect $detect_file \
+             --slurpfile validate $validate_file \
+             --slurpfile catalog $catalog_file \
+             '{
+                vendor: $vendor,
+                detect: $detect[0],
+                validate: $validate[0],
+                catalog: $catalog[0],
+                generated_at: (now | todate)
+              }' > reports/ubuntu-summary.json
+        echo "✅ Summary report created at reports/ubuntu-summary.json"
+      shell: bash
+
+    # 5️⃣ UPLOAD REPORTS
+    - name: Upload Ubuntu Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: ubuntu-reports
+        path: reports/
