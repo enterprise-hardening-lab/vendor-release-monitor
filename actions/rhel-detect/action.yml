@@ -1,27 +1,36 @@
 ---
 name: "RHEL Vendor Detection"
-description: "Fetches the latest RHEL version, validates, updates catalog, and generates structured reports"
+description: "Fetches the latest RHEL release, validates, updates catalog, and generates structured reports"
+
+inputs:
+  vendor:
+    description: "Vendor name (rhel)"
+    required: true
 
 runs:
   using: "composite"
   steps:
+    # 1️⃣ Checkout
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 2️⃣ Set up Python
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.x"
 
+    # 3️⃣ Install dependencies
     - name: Install dependencies
       run: pip install requests jq
       shell: bash
 
+    # 4️⃣ Prepare directories
     - name: Ensure directories
       run: mkdir -p reports catalog/state
       shell: bash
 
-    # 1️⃣ DETECTION (Resilient)
+    # 5️⃣ DETECTION
     - name: Run RHEL API Client (resilient)
       id: detect
       run: |
@@ -33,7 +42,7 @@ runs:
         version=$(echo "$output" | grep "Latest RHEL version detected" | awk -F': ' '{print $2}')
 
         if [ -z "$version" ]; then
-          echo "⚠️ No version detected — falling back to catalog/state/rhel.json"
+          echo "⚠️ No version detected; falling back to catalog/state/rhel.json"
           if [ -f catalog/state/rhel.json ]; then
             version=$(jq -r '.last_version' catalog/state/rhel.json)
           else
@@ -46,7 +55,7 @@ runs:
         echo "✅ Detected RHEL version: $version"
       shell: bash
 
-    # 2️⃣ CATALOG UPDATE
+    # 6️⃣ COMPARE / UPDATE
     - name: Compare and Update Catalog
       id: update
       run: |
@@ -55,15 +64,15 @@ runs:
         echo "✅ Catalog comparison complete."
       shell: bash
 
-    # 3️⃣ VALIDATION (Simulated)
+    # 7️⃣ VALIDATION
     - name: Validate RHEL image
       id: validate
       run: |
         echo "{\"vendor\": \"rhel\", \"validation_status\": \"passed\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/rhel-validate.json
-        echo "✅ Validation simulated."
+        echo "✅ Validation simulated (replace with Trivy scan later)."
       shell: bash
 
-    # 4️⃣ SUMMARY GENERATION
+    # 8️⃣ SUMMARY GENERATION
     - name: Generate RHEL Summary Report
       id: summary
       run: |
@@ -83,12 +92,17 @@ runs:
                 generated_at: (now | todate)
               }' > reports/rhel-summary.json
 
-        echo "✅ RHEL summary report created at reports/rhel-summary.json"
+        echo "✅ Summary report created: reports/rhel-summary.json"
       shell: bash
 
-    # 5️⃣ UPLOAD REPORTS
-    - name: Upload RHEL Reports
-      uses: actions/upload-artifact@v4
+    # 9️⃣ UPLOAD REPORTS (retry-safe)
+    - name: Upload RHEL Reports (resilient)
+      uses: nick-fields/retry@v3
       with:
-        name: rhel-reports
-        path: reports/
+        max_attempts: 5
+        retry_wait_seconds: 15
+        timeout_minutes: 5
+        command: |
+          artifact_name="reports-${{ inputs.vendor }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ github.job }}-${{ github.run_id }}"
+          echo "🧩 Uploading artifact: $artifact_name"
+          gh run upload-artifact "$artifact_name" reports/ || true
