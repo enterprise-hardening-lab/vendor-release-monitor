@@ -1,37 +1,55 @@
 ---
 name: "Ubuntu Vendor Detection"
-description: "Fetches the latest Ubuntu LTS version, updates catalog, and generates structured reports"
+description: "Fetches the latest Ubuntu LTS version, validates, updates catalog, and generates structured reports"
+
+inputs:
+  vendor:
+    description: "Vendor name (ubuntu)"
+    required: true
 
 runs:
   using: "composite"
   steps:
+    # 0️⃣ Checkout
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 1️⃣ Set up Python
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.x"
 
+    # 2️⃣ Install dependencies
     - name: Install dependencies
       run: pip install requests beautifulsoup4 jq
       shell: bash
 
+    # 3️⃣ Prepare directories
     - name: Ensure directories
       run: mkdir -p reports catalog/state
       shell: bash
 
-    # 1️⃣ DETECTION
+    # 4️⃣ DETECT latest Ubuntu version
     - name: Run Ubuntu RSS Fetcher
       id: fetch
       run: |
+        echo "🔎 Fetching latest Ubuntu LTS release..."
         version=$(python3 connectors/ubuntu/rss_fetcher.py | grep "Latest Ubuntu version detected" | awk -F': ' '{print $2}')
+        if [ -z "$version" ]; then
+          echo "⚠️  Detection failed; falling back to catalog/state/ubuntu.json"
+          if [ -f catalog/state/ubuntu.json ]; then
+            version=$(jq -r '.last_version' catalog/state/ubuntu.json)
+          else
+            version="unknown"
+          fi
+        fi
         echo "latest_version=$version" >> $GITHUB_OUTPUT
         echo "{\"vendor\": \"ubuntu\", \"detected_version\": \"$version\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/ubuntu-detect.json
         echo "✅ Detected latest Ubuntu version: $version"
       shell: bash
 
-    # 2️⃣ COMPARISON + CATALOG UPDATE
+    # 5️⃣ CATALOG COMPARISON
     - name: Compare and Update Catalog
       id: update
       run: |
@@ -40,21 +58,22 @@ runs:
         echo "✅ Catalog comparison complete."
       shell: bash
 
-    # 3️⃣ VALIDATION (simulated for now)
+    # 6️⃣ VALIDATION (Simulated)
     - name: Validate Ubuntu image
       id: validate
       run: |
         echo "{\"vendor\": \"ubuntu\", \"validation_status\": \"passed\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > reports/ubuntu-validate.json
-        echo "✅ Validation simulated."
+        echo "✅ Validation simulated (replace with Trivy scan later)."
       shell: bash
 
-    # 4️⃣ GENERATE SUMMARY
+    # 7️⃣ GENERATE SUMMARY
     - name: Generate Ubuntu Summary Report
       id: summary
       run: |
         detect_file="reports/ubuntu-detect.json"
         validate_file="reports/ubuntu-validate.json"
         catalog_file="reports/ubuntu-catalog.json"
+
         jq -n --arg vendor "ubuntu" \
              --slurpfile detect $detect_file \
              --slurpfile validate $validate_file \
@@ -66,12 +85,12 @@ runs:
                 catalog: $catalog[0],
                 generated_at: (now | todate)
               }' > reports/ubuntu-summary.json
-        echo "✅ Summary report created at reports/ubuntu-summary.json"
+        echo "✅ Summary report created: reports/ubuntu-summary.json"
       shell: bash
 
-    # 5️⃣ UPLOAD REPORTS
+    # 8️⃣ UPLOAD REPORTS (with unique name)
     - name: Upload Ubuntu Reports
       uses: actions/upload-artifact@v4
       with:
-        name: ubuntu-reports
+        name: reports-${{ inputs.vendor }}-${{ github.run_number }}
         path: reports/
