@@ -96,5 +96,5 @@ jobs:
     steps:
       - name: 🧾 Print final summary
         run: |
-          echo "✅ Operation completed for action: ${{ github.event.inputs.action }}"
+          echo "✅ Operation completeed for action: ${{ github.event.inputs.action }}"
           echo "🏷️ Vendors processed: ${{ github.event.inputs.vendor }}"
