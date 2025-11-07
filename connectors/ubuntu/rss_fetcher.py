@@ -1,24 +1,36 @@
 import requests
-from bs4 import BeautifulSoup
 
 def get_latest_ubuntu_version():
     """
-    Fetch the latest Ubuntu release version from the official releases RSS feed.
+    Fetch the latest Ubuntu release version using the official JSON stream API.
+    Source: https://cloud-images.ubuntu.com/releases/streams/v1/com.ubuntu.cloud:released:download.json
     """
-    RSS_FEED = "https://releases.ubuntu.com/rss.xml"
-    response = requests.get(RSS_FEED, timeout=10)
+    URL = "https://cloud-images.ubuntu.com/releases/streams/v1/com.ubuntu.cloud:released:download.json"
+    response = requests.get(URL, timeout=10)
     response.raise_for_status()
 
-    soup = BeautifulSoup(response.text, "xml")
-    latest_item = soup.find("item")
+    data = response.json()
 
-    if not latest_item:
-        print("❌ Could not parse Ubuntu RSS feed.")
+    products = data.get("products", {})
+    if not products:
+        print("❌ Could not find products in Ubuntu release stream.")
         return None
 
-    title = latest_item.title.text.strip()
-    print(f"Latest Ubuntu version detected: {title}")
-    return title
+    # Extract all versions and sort them
+    versions = []
+    for product_id, product_data in products.items():
+        version = product_data.get("version")
+        if version and "LTS" in product_data.get("release_title", ""):
+            versions.append((version, product_data.get("release_title")))
+
+    if not versions:
+        print("❌ No LTS versions found in stream data.")
+        return None
+
+    # Sort versions lexicographically (e.g., 22.04.3 > 20.04.6)
+    latest_version = sorted(versions, key=lambda x: x[0], reverse=True)[0][1]
+    print(f"Latest Ubuntu version detected: {latest_version}")
+    return latest_version
 
 
 if __name__ == "__main__":
