@@ -3,28 +3,29 @@ import re
 
 def get_latest_rhel_version():
     """
-    Fetch the latest RHEL release version from the official Red Hat product metadata API.
-    This endpoint does not require authentication for general release information.
+    Fetch the latest RHEL version from the official Red Hat Security Data API.
+    Endpoint: https://access.redhat.com/hydra/rest/securitydata/cve.json
+    This API provides CVE metadata, including affected product versions.
     """
-    URL = "https://access.redhat.com/labs/securitydataapi/ovals"
-    response = requests.get(URL, timeout=10)
+    URL = "https://access.redhat.com/hydra/rest/securitydata/cve.json"
+    response = requests.get(URL, timeout=15)
     response.raise_for_status()
 
-    # Example API returns a list of OVAL definitions; extract RHEL versions.
     data = response.json()
     versions = set()
 
-    for item in data:
-        product = item.get("product_name", "")
-        match = re.search(r"Red Hat Enterprise Linux (\d+(\.\d+)?)", product)
-        if match:
-            versions.add(match.group(1))
+    for entry in data:
+        for pkg in entry.get("affected_release", []) or []:
+            product_name = pkg.get("product_name", "")
+            match = re.search(r"Red Hat Enterprise Linux (\d+(?:\.\d+)?)", product_name)
+            if match:
+                versions.add(match.group(1))
 
     if not versions:
         print("❌ Could not find RHEL versions in API response.")
         return None
 
-    latest = sorted(list(versions), key=lambda v: [int(x) for x in v.split('.')], reverse=True)[0]
+    latest = sorted(versions, key=lambda v: [int(x) for x in v.split('.')], reverse=True)[0]
     print(f"Latest RHEL version detected: {latest}")
     return latest
 
