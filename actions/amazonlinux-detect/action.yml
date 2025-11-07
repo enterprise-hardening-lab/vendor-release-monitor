@@ -1,0 +1,24 @@
+name: "Amazon Linux Vendor Detection"
+description: "Fetches the latest Amazon Linux release and updates catalog"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
+    - name: Run Amazon Linux RSS Fetcher
+      id: fetch
+      run: |
+        version=$(python3 connectors/amazonlinux/rss_feed.py | grep "Latest Amazon Linux version detected" | awk -F': ' '{print $2}')
+        echo "latest_version=$version" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Compare and Update Catalog
+      run: python3 scripts/compare_versions.py amazonlinux "${{ steps.fetch.outputs.latest_version }}"
+      shell: bash

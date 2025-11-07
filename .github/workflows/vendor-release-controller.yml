@@ -1,0 +1,49 @@
+name: 🚀 Vendor Release Controller (Manual Only – Composite Action Version)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "detect | validate | notify | update-catalog | generate-summary"
+        required: true
+        default: "detect"
+      vendor:
+        description: "Target vendor (ubuntu | rhel | amazonlinux)"
+        required: true
+        default: "ubuntu"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  guard:
+    name: Verify Manual Trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Event
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "❌ This workflow must be manually triggered."
+            exit 1
+          fi
+          echo "✅ Manual trigger verified."
+
+  ubuntu-detect:
+    name: 🐧 Ubuntu Vendor Detection
+    needs: guard
+    if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'ubuntu' }}
+    uses: ./actions/ubuntu-detect
+
+  rhel-detect:
+    name: 🔵 RHEL Vendor Detection
+    needs: guard
+    if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'rhel' }}
+    uses: ./actions/rhel-detect
+
+  amazonlinux-detect:
+    name: 🟣 Amazon Linux Vendor Detection
+    needs: guard
+    if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'amazonlinux' }}
+    uses: ./actions/amazonlinux-detect

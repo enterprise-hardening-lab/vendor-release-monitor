@@ -1,0 +1,28 @@
+name: "Ubuntu Vendor Detection"
+description: "Fetches the latest Ubuntu LTS version and updates catalog"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
+    - name: Install dependencies
+      run: pip install requests beautifulsoup4
+      shell: bash
+
+    - name: Run Ubuntu RSS Fetcher
+      id: fetch
+      run: |
+        version=$(python3 connectors/ubuntu/rss_fetcher.py | grep "Latest Ubuntu version detected" | awk -F': ' '{print $2}')
+        echo "latest_version=$version" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Compare and Update Catalog
+      run: python3 scripts/compare_versions.py ubuntu "${{ steps.fetch.outputs.latest_version }}"
+      shell: bash
