@@ -43,10 +43,15 @@ jobs:
       matrix:
         vendor: [ubuntu, rhel, amazonlinux]
       max-parallel: 3
-    if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Skip if vendor filter doesn't match
+        if: ${{ needs.guard.outputs.vendor != 'all' && needs.guard.outputs.vendor != matrix.vendor }}
+        run: |
+          echo "Skipping vendor ${{ matrix.vendor }} because filter = ${{ needs.guard.outputs.vendor }}"
+          exit 0
 
       ###############################################################
       # Sequential Action Orchestration (Per Vendor)
@@ -54,6 +59,7 @@ jobs:
 
       # 1️⃣ DETECT
       - name: 🔍 Detect Vendor Release
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -61,6 +67,7 @@ jobs:
 
       # 2️⃣ VALIDATE
       - name: 🧪 Validate Vendor Image Compliance
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -68,6 +75,7 @@ jobs:
 
       # 3️⃣ NOTIFY (JIRA)
       - name: 📩 Notify JIRA (New Release Detected)
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
         uses: ./actions/jira-notify
         with:
           vendor: ${{ matrix.vendor }}
@@ -76,6 +84,7 @@ jobs:
 
       # 4️⃣ UPDATE CATALOG
       - name: 🗂️ Update Vendor Catalog
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -83,6 +92,7 @@ jobs:
 
       # 5️⃣ GENERATE SUMMARY
       - name: 📊 Generate Summary Report
+        if: ${{ needs.guard.outputs.vendor == 'all' || needs.guard.outputs.vendor == matrix.vendor }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
