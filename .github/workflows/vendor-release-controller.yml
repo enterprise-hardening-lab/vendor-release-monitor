@@ -30,20 +30,23 @@ jobs:
           fi
           echo "✅ Manual trigger verified."
 
-  ubuntu-detect:
-    name: 🐧 Ubuntu Vendor Detection
+  detect:
+    name: Vendor Detection
     needs: guard
-    if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'ubuntu' }}
-    uses: ./actions/ubuntu-detect@main@main
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.action == 'detect' }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  rhel-detect:
-    name: 🔵 RHEL Vendor Detection
-    needs: guard
-    if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'rhel' }}
-    uses: ./actions/rhel-detect@main@main
+      - name: 🐧 Ubuntu Vendor Detection
+        if: ${{ github.event.inputs.vendor == 'ubuntu' }}
+        uses: ./.github/actions/ubuntu-detect
 
-  amazonlinux-detect:
-    name: 🟣 Amazon Linux Vendor Detection
-    needs: guard
-    if: ${{ github.event.inputs.action == 'detect' && github.event.inputs.vendor == 'amazonlinux' }}
-    uses: ./actions/amazonlinux-detect@main@main
+      - name: 🔵 RHEL Vendor Detection
+        if: ${{ github.event.inputs.vendor == 'rhel' }}
+        uses: ./.github/actions/rhel-detect
+
+      - name: 🟣 Amazon Linux Vendor Detection
+        if: ${{ github.event.inputs.vendor == 'amazonlinux' }}
+        uses: ./.github/actions/amazonlinux-detect
