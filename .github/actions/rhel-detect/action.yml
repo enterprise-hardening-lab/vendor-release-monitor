@@ -12,6 +12,10 @@ runs:
       with:
         python-version: "3.x"
 
+    - name: Install dependencies
+      run: pip install requests
+      shell: bash
+
     - name: Run RHEL API Client
       id: fetch
       run: |
