@@ -1,0 +1,24 @@
+name: "RHEL Vendor Detection"
+description: "Fetches the latest RHEL version and updates catalog"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
+    - name: Run RHEL API Client
+      id: fetch
+      run: |
+        version=$(python3 connectors/rhel/api_client.py | grep "Latest RHEL version detected" | awk -F': ' '{print $2}')
+        echo "latest_version=$version" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Compare and Update Catalog
+      run: python3 scripts/compare_versions.py rhel "${{ steps.fetch.outputs.latest_version }}"
+      shell: bash
