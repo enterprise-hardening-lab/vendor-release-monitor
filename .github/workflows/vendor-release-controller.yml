@@ -54,6 +54,7 @@ jobs:
 
       # 1️⃣ DETECT
       - name: 🔍 Detect Vendor Release
+        if: ${{ needs.guard.outputs.action == 'detect' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -61,6 +62,7 @@ jobs:
 
       # 2️⃣ VALIDATE
       - name: 🧪 Validate Vendor Image Compliance
+        if: ${{ needs.guard.outputs.action == 'validate' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -68,6 +70,7 @@ jobs:
 
       # 3️⃣ NOTIFY (JIRA)
       - name: 📩 Notify JIRA (New Release Detected)
+        if: ${{ needs.guard.outputs.action == 'notify' }}
         uses: ./actions/jira-notify
         with:
           vendor: ${{ matrix.vendor }}
@@ -76,6 +79,7 @@ jobs:
 
       # 4️⃣ UPDATE CATALOG
       - name: 🗂️ Update Vendor Catalog
+        if: ${{ needs.guard.outputs.action == 'update-catalog' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -83,6 +87,7 @@ jobs:
 
       # 5️⃣ GENERATE SUMMARY
       - name: 📊 Generate Summary Report
+        if: ${{ needs.guard.outputs.action == 'generate-summary' }}
         uses: ./actions/${{ matrix.vendor }}-detect
         with:
           vendor: ${{ matrix.vendor }}
@@ -100,10 +105,15 @@ jobs:
         run: |
           mkdir -p reports/final
           echo "Combining individual vendor reports into one unified compliance summary..."
-          jq -s '.' reports/*-summary.json > reports/final/compliance-summary.json
-          echo "✅ Final report created at reports/final/compliance-summary.json"
+          if ls reports/*-summary.json 1> /dev/null 2>&1; then
+            jq -s '.' reports/*-summary.json > reports/final/compliance-summary.json
+            echo "✅ Final report created at reports/final/compliance-summary.json"
+          else
+            echo "⚠️ No summary reports found to merge"
+          fi
 
       - name: Upload Final Summary
+        if: hashFiles('reports/final/compliance-summary.json') != ''
         uses: actions/upload-artifact@v4
         with:
           name: unified-compliance-summary
