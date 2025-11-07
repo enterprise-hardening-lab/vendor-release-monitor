@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       vendor:
-        description: "Select vendor (ubuntu | rhel | amazonlinux)"
+        description: "ubuntu | rhel | amazonlinux"
         required: true
         default: "ubuntu"
 
@@ -30,83 +30,120 @@ jobs:
           echo "Vendor selected: ${{ github.event.inputs.vendor }}"
 
   controller:
-    name: Execute Vendor Compliance Pipeline
+    name: Run Vendor Pipeline
     needs: guard
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      ###############################################################
-      # 1️⃣ DETECT
-      ###############################################################
-      - name: 🔍 Detect Vendor Release
-        id: detect
-        run: |
-          echo "Running detection for ${{ github.event.inputs.vendor }}..."
-          python3 connectors/${{ github.event.inputs.vendor }}/api_client.py || exit 1
-          echo "✅ Detection successful."
+      # ---------------- DETECT ----------------
+      - name: 🔍 Detect Ubuntu
+        if: ${{ needs.guard.outputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
+        with:
+          vendor: ubuntu
+          action: detect
 
-      ###############################################################
-      # 2️⃣ VALIDATE
-      ###############################################################
-      - name: 🧪 Validate CIS and Security Compliance
-        id: validate
-        run: |
-          echo "Running validation for ${{ github.event.inputs.vendor }}..."
-          # Placeholder for CIS or Trivy validation commands
-          echo "✅ Validation passed."
+      - name: 🔍 Detect RHEL
+        if: ${{ needs.guard.outputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          vendor: rhel
+          action: detect
 
-      ###############################################################
-      # 3️⃣ NOTIFY (JIRA)
-      ###############################################################
+      - name: 🔍 Detect Amazon Linux
+        if: ${{ needs.guard.outputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
+          action: detect
+
+      # ---------------- VALIDATE ----------------
+      - name: 🧪 Validate Ubuntu
+        if: ${{ needs.guard.outputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
+        with:
+          vendor: ubuntu
+          action: validate
+
+      - name: 🧪 Validate RHEL
+        if: ${{ needs.guard.outputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          vendor: rhel
+          action: validate
+
+      - name: 🧪 Validate Amazon Linux
+        if: ${{ needs.guard.outputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
+          action: validate
+
+      # ---------------- NOTIFY ----------------
       - name: 📩 Notify JIRA
-        id: notify
         uses: ./actions/jira-notify
         with:
-          vendor: ${{ github.event.inputs.vendor }}
+          vendor: ${{ needs.guard.outputs.vendor }}
           version: "latest"
           old_version: "previous"
 
-      ###############################################################
-      # 4️⃣ UPDATE CATALOG
-      ###############################################################
-      - name: 🗂️ Update Vendor Catalog
-        id: update
-        uses: ./actions/${{ github.event.inputs.vendor }}-detect
+      # ---------------- UPDATE ----------------
+      - name: 🗂️ Update Catalog Ubuntu
+        if: ${{ needs.guard.outputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
         with:
-          vendor: ${{ github.event.inputs.vendor }}
+          vendor: ubuntu
           action: update-catalog
 
-      ###############################################################
-      # 5️⃣ GENERATE SUMMARY
-      ###############################################################
-      - name: 📊 Generate Compliance Summary
-        id: summary
-        uses: ./actions/${{ github.event.inputs.vendor }}-detect
+      - name: 🗂️ Update Catalog RHEL
+        if: ${{ needs.guard.outputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
         with:
-          vendor: ${{ github.event.inputs.vendor }}
+          vendor: rhel
+          action: update-catalog
+
+      - name: 🗂️ Update Catalog AmazonLinux
+        if: ${{ needs.guard.outputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
+          action: update-catalog
+
+      # ---------------- SUMMARY ----------------
+      - name: 📊 Summary Ubuntu
+        if: ${{ needs.guard.outputs.vendor == 'ubuntu' }}
+        uses: ./actions/ubuntu-detect
+        with:
+          vendor: ubuntu
+          action: generate-summary
+
+      - name: 📊 Summary RHEL
+        if: ${{ needs.guard.outputs.vendor == 'rhel' }}
+        uses: ./actions/rhel-detect
+        with:
+          vendor: rhel
+          action: generate-summary
+
+      - name: 📊 Summary AmazonLinux
+        if: ${{ needs.guard.outputs.vendor == 'amazonlinux' }}
+        uses: ./actions/amazonlinux-detect
+        with:
+          vendor: amazonlinux
           action: generate-summary
 
   finalize:
-    name: 🧾 Post-Operation Summary
+    name: 🧾 Finalize
     needs: controller
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: 🧩 Verify reports exist
-        run: |
-          if ls reports/*summary.json >/dev/null 2>&1; then
-            echo "✅ Reports found"
-          else
-            echo "❌ No reports generated. Failing pipeline."
-            exit 1
-          fi
-
-      - name: Upload Final Report
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p reports/final
+          jq -s '.' reports/*summary.json > reports/final/compliance-summary.json
+          echo "✅ Final summary built"
+      - uses: actions/upload-artifact@v4
         with:
-          name: "${{ github.event.inputs.vendor }}-compliance-report"
-          path: reports/
+          name: compliance-summary
+          path: reports/final/compliance-summary.json
