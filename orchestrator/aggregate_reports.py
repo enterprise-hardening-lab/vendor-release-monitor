@@ -8,10 +8,9 @@ def collect_recent_cves(days=7):
     base = Path("catalog/cves")
     Path("reports").mkdir(exist_ok=True)
 
-    # Handle missing directory case gracefully
+    # If directory missing → create empty summary
     if not base.exists():
         print("⚠️ No CVE data directory found (catalog/cves). Creating empty summary.")
-        out = Path("reports/weekly_cve_summary.json")
         report = {
             "week_start": (datetime.now(UTC) - timedelta(days=7)).strftime("%Y-%m-%d"),
             "week_end": datetime.now(UTC).strftime("%Y-%m-%d"),
@@ -19,6 +18,7 @@ def collect_recent_cves(days=7):
             "total": {},
             "generated_at": datetime.now(UTC).isoformat()
         }
+        out = Path("reports/weekly_cve_summary.json")
         out.write_text(json.dumps(report, indent=2))
         print(f"✅ Created empty weekly summary at {out}")
         return report
@@ -26,10 +26,8 @@ def collect_recent_cves(days=7):
     cutoff = datetime.now(UTC) - timedelta(days=days)
     summary = defaultdict(lambda: defaultdict(int))
     total = defaultdict(int)
-
     found_files = 0
 
-    # Traverse vendor directories
     for vendor_dir in base.iterdir():
         if not vendor_dir.is_dir():
             continue
@@ -44,19 +42,15 @@ def collect_recent_cves(days=7):
                     continue
                 if ts < cutoff:
                     continue
-
                 data = json.loads(f.read_text())
                 for cve in data:
                     sev = cve.get("severity", "Unknown")
                     summary[vendor_dir.name][sev] += 1
                     total[sev] += 1
 
-    week_start = (datetime.now(UTC) - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_end = datetime.now(UTC).strftime("%Y-%m-%d")
-
     report = {
-        "week_start": week_start,
-        "week_end": week_end,
+        "week_start": (datetime.now(UTC) - timedelta(days=7)).strftime("%Y-%m-%d"),
+        "week_end": datetime.now(UTC).strftime("%Y-%m-%d"),
         "vendors": summary,
         "total": total,
         "generated_at": datetime.now(UTC).isoformat()
