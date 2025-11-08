@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enterprise-hardening-lab.github.io/vendor-release-monitor/schemas/release.schema.json",
+  "title": "Vendor Release Record",
+  "description": "Normalized release record structure for vendor base image monitoring.",
+  "type": "object",
+  "properties": {
+    "vendor": {
+      "type": "string",
+      "description": "Vendor or OS name (e.g., ubuntu, rhel, amazonlinux)"
+    },
+    "stream": {
+      "type": "string",
+      "description": "Release stream or channel (e.g., 24.04-lts, rhel-9, al2023)"
+    },
+    "release": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Vendor release version (e.g., 24.04.3 LTS)"
+        },
+        "channel": {
+          "type": "string",
+          "description": "Channel or edition (e.g., lts, stable, minimal)"
+        },
+        "release_notes_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to vendor release notes"
+        },
+        "source_uri": {
+          "type": "string",
+          "format": "uri",
+          "description": "Upstream source image, ISO, or AMI URI"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Vendor official publish timestamp (UTC)"
+        },
+        "digest": {
+          "type": "string",
+          "description": "Checksum or image digest if available"
+        }
+      },
+      "required": ["version"]
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "fetched_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when this record was fetched by connector"
+        },
+        "signed": {
+          "type": "boolean",
+          "description": "Whether vendor signature or checksum was validated"
+        },
+        "source": {
+          "type": "string",
+          "description": "Connector source type (rss, api, manual)"
+        }
+      }
+    },
+    "last_version": {
+      "type": "string",
+      "description": "Legacy fallback field for backward compatibility"
+    }
+  },
+  "required": ["vendor"],
+  "additionalProperties": true
+}

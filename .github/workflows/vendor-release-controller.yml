@@ -167,3 +167,11 @@ jobs:
           name: final-compliance-summary
           path: reports/final/compliance-summary.json
 
+      - name: 📩 Create GitHub Issue
+        id: notify
+        run: |
+          echo "🧠 Emitting GitHub issue for detected release..."
+          python3 -c "from orchestrator.emit import emit_release_event; emit_release_event('${{ needs.guard.outputs.vendor }}','latest','previous')"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

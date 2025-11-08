@@ -1,0 +1,30 @@
+# rules/streams.yaml
+# Vendor streams to monitor for new releases and CVEs
+
+vendors:
+  - name: ubuntu
+    enabled: true
+    streams:
+      - name: "24.04-lts"
+        channel: "lts"
+        source: "rss"
+        state_file: "catalog/state/ubuntu.json"
+        history_dir: "catalog/history/ubuntu"
+
+  - name: rhel
+    enabled: true
+    streams:
+      - name: "rhel-9"
+        channel: "stable"
+        source: "api"
+        state_file: "catalog/state/rhel.json"
+        history_dir: "catalog/history/rhel"
+
+  - name: amazonlinux
+    enabled: true
+    streams:
+      - name: "al2023"
+        channel: "stable"
+        source: "rss"
+        state_file: "catalog/state/amazonlinux.json"
+        history_dir: "catalog/history/amazonlinux"

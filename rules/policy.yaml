@@ -1,0 +1,25 @@
+# rules/policy.yaml
+# Enterprise policy rules controlling release and CVE monitoring behaviour
+
+release_policy:
+  allow_streams:
+    - "24.04-lts"
+    - "rhel-9"
+    - "al2023"
+  cool_off_hours: 6            # Wait period before raising alerts after vendor publish
+  auto_approve: false          # Require manual review
+  semver_rule: "patch_only"    # Ignore major/minor changes, track patch releases only
+
+cve_policy:
+  alert_severity: ["Critical", "High"]
+  ignored_keywords: ["beta", "preview"]
+  notify_channels:
+    - "jira"
+    - "slack"
+  reopen_if_updated: true      # Reopen ticket if CVE updated with new data
+  minimum_cvss_score: 7.0      # Trigger alert if CVSS >= 7.0
+
+audit_policy:
+  retain_history_days: 90
+  enforce_schema_validation: true
+  append_only: true            # Disallow overwriting previous history records

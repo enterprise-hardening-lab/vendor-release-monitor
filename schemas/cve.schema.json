@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enterprise-hardening-lab.github.io/vendor-release-monitor/schemas/cve.schema.json",
+  "title": "Vendor CVE Record",
+  "description": "Normalized CVE record structure for vulnerabilities affecting monitored vendor streams.",
+  "type": "object",
+  "properties": {
+    "vendor": {
+      "type": "string",
+      "description": "OS vendor (e.g., ubuntu, rhel, amazonlinux)"
+    },
+    "stream": {
+      "type": "string",
+      "description": "Release stream affected (e.g., 24.04-lts, rhel-9, al2023)"
+    },
+    "cve_id": {
+      "type": "string",
+      "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$",
+      "description": "CVE identifier"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short summary of the vulnerability"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Original CVE publication timestamp (UTC)"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp (UTC)"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["Critical", "High", "Medium", "Low", "Unknown"],
+      "description": "Severity classification"
+    },
+    "cvss_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "CVSS v3.x score"
+    },
+    "package": {
+      "type": "string",
+      "description": "Affected package or component name"
+    },
+    "fixed_version": {
+      "type": "string",
+      "description": "Version where fix is available (if applicable)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "fixed", "not_affected", "pending"],
+      "description": "Vendor status of vulnerability for this stream"
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "List of reference URLs"
+    },
+    "source": {
+      "type": "string",
+      "description": "Data source (nvd, ubuntu, rhel, amazon)"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-t
